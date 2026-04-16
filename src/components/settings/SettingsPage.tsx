@@ -139,9 +139,9 @@ export function SettingsPage({ open, onClose }: SettingsPageProps) {
 
         <DrawerFooter>
           <DrawerClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline" size="sm">Cancel</Button>
           </DrawerClose>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} size="sm">
             Save
           </Button>
         </DrawerFooter>

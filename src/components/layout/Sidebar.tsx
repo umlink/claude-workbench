@@ -1,4 +1,4 @@
-import { Sparkles, Settings, FolderPlus, RefreshCw } from "lucide-react";
+import { Sparkles, Settings, FolderPlus, RefreshCw, BookOpen } from "lucide-react";
 import { ProjectList } from "../sidebar/ProjectList";
 import { Button } from "@/components/ui/button";
 
@@ -29,9 +29,17 @@ export function Sidebar({ onNewSession, onNewProject, onSettings }: SidebarProps
         </div>
       </div>
 
+      {/* Claude Guide */}
+      <div className="px-4 pt-3">
+        <button className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors">
+          <BookOpen size={16} />
+          <span>Claude 使用指南</span>
+        </button>
+      </div>
+
       {/* Project List */}
       <nav
-        className="flex-1 px-4 py-3 overflow-y-auto overflow-x-hidden"
+        className="flex-1 px-4 py-2 overflow-y-auto overflow-x-hidden"
         aria-label="Projects"
       >
         <ProjectList onNewSession={onNewSession} />

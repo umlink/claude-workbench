@@ -32,7 +32,6 @@ export function ProjectList({ onNewSession }: ProjectListProps) {
   });
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   // Sync expandedIds to window for cross-component access
@@ -68,12 +67,10 @@ export function ProjectList({ onNewSession }: ProjectListProps) {
   };
 
   const handleNewSession = (projectId: string) => {
-    setOpenMenuId(null);
     onNewSession(projectId);
   };
 
   const handleDeleteProject = (projectId: string) => {
-    setOpenMenuId(null);
     setDeleteProjectId(projectId);
   };
 
@@ -90,18 +87,6 @@ export function ProjectList({ onNewSession }: ProjectListProps) {
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (openMenuId) {
-        const target = e.target as HTMLElement;
-        if (!target.closest('[data-dropdown-menu]')) {
-          setOpenMenuId(null);
-        }
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [openMenuId]);
 
   const projectToDelete = projects.find((p) => p.id === deleteProjectId);
 
@@ -111,7 +96,6 @@ export function ProjectList({ onNewSession }: ProjectListProps) {
         {projects.map((project) => {
           const isExpanded = expandedIds.has(project.id);
           const isActive = activeProjectId === project.id;
-          const isMenuOpen = openMenuId === project.id;
           const projectSessions = sessions
             .filter((s) => s.project_id === project.id)
             .sort((a, b) => {
@@ -175,65 +159,61 @@ export function ProjectList({ onNewSession }: ProjectListProps) {
                   ref={actionsRef}
                   className={cn(
                     "flex-shrink-0 transition-opacity",
-                    isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    "opacity-0 group-hover:opacity-100"
                   )}
                   data-dropdown-menu
                 >
                   <DropdownMenu>
-                    <DropdownMenuTrigger
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenuId(isMenuOpen ? null : project.id);
-                      }}
-                      asChild
-                    >
+                    <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className={cn("w-6 h-6", isMenuOpen && "bg-accent")}
+                        className="w-6 h-6"
                         title="More options"
                       >
                         <MoreHorizontal size={14} />
                       </Button>
                     </DropdownMenuTrigger>
-                    {isMenuOpen && (
-                      <DropdownMenuContent side="bottom-left" align="start" data-dropdown-menu>
-                        <DropdownMenuItem
-                          onClick={() => handleNewSession(project.id)}
-                          icon={<Plus size={14} />}
-                        >
-                          New Session
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteProject(project.id)}
-                          icon={<Trash2 size={14} className="text-destructive" />}
-                          className="text-destructive"
-                        >
-                          Delete Project
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    )}
+                    <DropdownMenuContent side="bottom" align="end" data-dropdown-menu>
+                      <DropdownMenuItem
+                        onClick={() => handleNewSession(project.id)}
+                        icon={<Plus size={14} />}
+                      >
+                        New Session
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteProject(project.id)}
+                        icon={<Trash2 size={14} className="text-destructive" />}
+                        className="text-destructive"
+                      >
+                        Delete Project
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
 
               {/* Session List */}
-              {isExpanded && (
-                <div role="group" className="relative">
-                  <div className="flex flex-col gap-0">
-                    {projectSessions.map((session) => (
-                      <SessionItem key={session.id} session={session} />
-                    ))}
-                    {projectSessions.length === 0 && (
-                      <div className="pl-6 py-0.5">
-                        <span className="text-xs text-muted-foreground/50 select-none">
-                          (empty)
-                        </span>
-                      </div>
-                    )}
-                  </div>
+              <div
+                role="group"
+                className={cn(
+                  "relative overflow-hidden transition-all duration-200 ease-out",
+                  isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                )}
+              >
+                <div className="flex flex-col gap-0">
+                  {projectSessions.map((session) => (
+                    <SessionItem key={session.id} session={session} />
+                  ))}
+                  {projectSessions.length === 0 && (
+                    <div className="pl-6 py-0.5">
+                      <span className="text-xs text-muted-foreground/50 select-none">
+                        (empty)
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}

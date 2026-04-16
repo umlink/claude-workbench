@@ -36,9 +36,9 @@ export function DropdownMenuContent({ children, align = "end", side = "bottom", 
   };
 
   const positionClasses = {
-    bottom: "right-0 top-full mt-1",
+    bottom: "right-0 top-full mt-0",
     right: "left-full top-0 ml-1",
-    "bottom-left": "left-0 top-full mt-1",
+    "bottom-left": "left-0 top-full mt-0",
   };
 
   return (
