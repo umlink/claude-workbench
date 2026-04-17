@@ -58,26 +58,6 @@ export function SettingsPage({ open, onClose }: SettingsPageProps) {
         <div className="flex flex-col gap-4 py-4">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">General</div>
           <div className="grid gap-2">
-            <Label htmlFor="claude-cli-path">Claude CLI Path</Label>
-            <Input
-              id="claude-cli-path"
-              type="text"
-              value={form.claude_cli_path}
-              onChange={(e) => setForm({ ...form, claude_cli_path: e.target.value })}
-              className="font-mono"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="default-shell">Default Shell</Label>
-            <Input
-              id="default-shell"
-              type="text"
-              value={form.default_shell}
-              onChange={(e) => setForm({ ...form, default_shell: e.target.value })}
-              className="font-mono"
-            />
-          </div>
-          <div className="grid gap-2">
             <Label htmlFor="theme">Theme</Label>
             <Select
               value={theme}

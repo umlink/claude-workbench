@@ -97,14 +97,8 @@
   overflow-y: auto !important;
 }
 
-/* xterm.js cursor and selection */
-.xterm .xterm-cursor {
-  background-color: hsl(var(--primary)) !important;
-}
-
-.xterm .xterm-selection {
-  background-color: hsl(var(--primary) / 0.2) !important;
-}
+/* xterm.js styles - let JS theme handle cursor and selection colors */
+/* Removed !important overrides to allow terminalTheme.ts to work correctly */
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
@@ -129,6 +123,117 @@
 ::selection {
   background: hsl(var(--primary) / 0.2);
   color: hsl(var(--foreground));
+}
+
+/* Code syntax highlighting - Professional GitHub-inspired theme */
+pre code {
+  color: inherit;
+}
+
+/* Light mode syntax colors - Professional light theme */
+:root {
+  --syntax-keyword: #cf222e;
+  --syntax-string: #0a3069;
+  --syntax-number: #0550ae;
+  --syntax-property: #24292f;
+  --syntax-comment: #6e7781;
+  --syntax-function: #8250df;
+  --syntax-class: #9a6700;
+  --syntax-variable: #953800;
+  --syntax-operator: #0550ae;
+  --syntax-punctuation: #24292f;
+  --syntax-tag: #116329;
+  --syntax-attr: #9a6700;
+}
+
+/* Dark mode syntax colors - Professional dark theme */
+.dark {
+  --syntax-keyword: #f85149;
+  --syntax-string: #a5d6ff;
+  --syntax-number: #79c0ff;
+  --syntax-property: #e6edf3;
+  --syntax-comment: #8b949e;
+  --syntax-function: #d2a8ff;
+  --syntax-class: #ffa657;
+  --syntax-variable: #ffa657;
+  --syntax-operator: #f85149;
+  --syntax-punctuation: #b1bac4;
+  --syntax-tag: #3fb950;
+  --syntax-attr: #d29922;
+}
+
+/* Generic syntax highlighting */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--syntax-comment);
+}
+
+.token.punctuation {
+  color: var(--syntax-punctuation);
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: var(--syntax-number);
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: var(--syntax-string);
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: var(--syntax-operator);
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: var(--syntax-keyword);
+}
+
+.token.function,
+.token.class-name {
+  color: var(--syntax-function);
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: var(--syntax-variable);
+}
+
+/* JSON specific syntax highlighting */
+.language-json .token.property {
+  color: var(--syntax-property);
+  font-weight: 500;
+}
+
+.language-json .token.string {
+  color: var(--syntax-string);
+}
+
+.language-json .token.number {
+  color: var(--syntax-number);
+}
+
+.language-json .token.punctuation {
+  color: var(--syntax-punctuation);
 }
 
 /* Hide scrollbar but keep scrolling */

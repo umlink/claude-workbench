@@ -41,10 +41,21 @@ export function CreateSessionDialog({ open, onClose, preSelectedProjectId }: Cre
     if (open) {
       setName(`Session ${new Date().toLocaleTimeString()}`);
       setCommand("claude");
-      setCwd("");
-      setProjectId(preSelectedProjectId ?? projects[0]?.id ?? "");
+      const selectedProjectId = preSelectedProjectId ?? projects[0]?.id ?? "";
+      setProjectId(selectedProjectId);
+      // Auto-set cwd to project path
+      const selectedProject = projects.find((p) => p.id === selectedProjectId);
+      setCwd(selectedProject?.path ?? "");
     }
   }, [open, projects, preSelectedProjectId]);
+
+  // Auto-update cwd when project changes
+  useEffect(() => {
+    if (projectId) {
+      const selectedProject = projects.find((p) => p.id === projectId);
+      setCwd(selectedProject?.path ?? "");
+    }
+  }, [projectId, projects]);
 
   const handleCreate = async () => {
     if (!projectId || !command.trim()) return;
@@ -90,21 +101,27 @@ export function CreateSessionDialog({ open, onClose, preSelectedProjectId }: Cre
 
           <div className="grid gap-2">
             <Label htmlFor="project">Project</Label>
-            <Select
-              value={projectId}
-              onValueChange={setProjectId}
-            >
-              <SelectTrigger id="project">
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} ({p.path})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {preSelectedProjectId ? (
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                {projects.find((p) => p.id === preSelectedProjectId)?.name ?? "Unknown project"}
+              </div>
+            ) : (
+              <Select
+                value={projectId}
+                onValueChange={setProjectId}
+              >
+                <SelectTrigger id="project">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} ({p.path})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -121,14 +138,9 @@ export function CreateSessionDialog({ open, onClose, preSelectedProjectId }: Cre
 
           <div className="grid gap-2">
             <Label htmlFor="cwd">Working Directory</Label>
-            <Input
-              id="cwd"
-              type="text"
-              value={cwd}
-              onChange={(e) => setCwd(e.target.value)}
-              placeholder={projects.find((p) => p.id === projectId)?.path ?? "/"}
-              className="font-mono"
-            />
+            <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+              {cwd ?? (projects.find((p) => p.id === projectId)?.path ?? "/")}
+            </div>
           </div>
         </div>
 

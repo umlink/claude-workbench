@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { SessionInfo } from "../../lib/tauri";
 import { useSessionStore } from "../../state/sessionStore";
-import { Terminal, X, Circle } from "lucide-react";
+import { Terminal, Minus, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -59,7 +59,7 @@ export function SessionItem({ session }: SessionItemProps) {
           }
         }}
         className={cn(
-          "group flex items-center gap-1 pr-1 pl-6 py-0.5 cursor-pointer rounded-none transition-colors duration-75 outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
+          "group flex items-center gap-1 pr-1 pl-6 py-0.5 cursor-pointer rounded-lg transition-colors duration-75 outline-none focus-visible:ring-1 focus-visible:ring-ring/50",
           isActive
             ? "bg-accent"
             : "hover:bg-accent/40"
@@ -114,7 +114,7 @@ export function SessionItem({ session }: SessionItemProps) {
           title="Close Session"
           aria-label="Close session"
         >
-          <X size={12} className="text-muted-foreground hover:text-foreground transition-colors" />
+          <Minus size={12} className="text-muted-foreground hover:text-foreground transition-colors" />
         </Button>
       </div>
 

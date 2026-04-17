@@ -8,6 +8,7 @@ import {
   type SessionInfo,
 } from "../lib/tauri";
 import { useProjectStore } from "./projectStore";
+import { useUIStore } from "./uiStore";
 
 interface SessionStore {
   sessions: SessionInfo[];
@@ -103,10 +104,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       if (session) {
         useProjectStore.getState().setActiveProject(session.project_id);
         // Also ensure the project is expanded in the UI
-        const { expandedIds } = window as any;
-        if (expandedIds && !expandedIds.has(session.project_id)) {
-          expandedIds.add(session.project_id);
-        }
+        useUIStore.getState().expandProject(session.project_id);
       }
 
       if (state.openTabIds.includes(id)) {

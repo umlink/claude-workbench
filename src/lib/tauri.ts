@@ -54,8 +54,6 @@ export interface SearchResult {
 }
 
 export interface AppSettings {
-  claude_cli_path: string;
-  default_shell: string;
   terminal_font_family: string;
   terminal_font_size: number;
   terminal_scrollback: number;
@@ -147,6 +145,10 @@ export async function renameProject(projectId: string, name: string): Promise<vo
 
 export async function pickFolder(): Promise<string | null> {
   return await invoke<string | null>("pick_folder");
+}
+
+export async function getHomeDir(): Promise<string> {
+  return await invoke<string>("get_home_dir");
 }
 
 // --- Settings commands ---

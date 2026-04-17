@@ -63,8 +63,6 @@ pub struct ProjectInfo {
 /// App settings
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct AppSettings {
-    pub claude_cli_path: String,
-    pub default_shell: String,
     pub terminal_font_family: String,
     pub terminal_font_size: u32,
     pub terminal_scrollback: u32,
@@ -74,8 +72,6 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         AppSettings {
-            claude_cli_path: "claude".to_string(),
-            default_shell: "/bin/zsh".to_string(),
             terminal_font_family: "JetBrains Mono, Menlo".to_string(),
             terminal_font_size: 14,
             terminal_scrollback: 10000,

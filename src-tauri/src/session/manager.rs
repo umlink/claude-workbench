@@ -639,16 +639,6 @@ impl SessionManager {
     pub fn get_settings(&self) -> Result<crate::session::AppSettings, String> {
         let defaults = crate::session::AppSettings::default();
         Ok(crate::session::AppSettings {
-            claude_cli_path: self
-                .storage
-                .db
-                .get_setting("claude_cli_path")?
-                .unwrap_or(defaults.claude_cli_path),
-            default_shell: self
-                .storage
-                .db
-                .get_setting("default_shell")?
-                .unwrap_or(defaults.default_shell),
             terminal_font_family: self
                 .storage
                 .db
@@ -676,8 +666,6 @@ impl SessionManager {
     }
 
     pub fn update_settings(&self, settings: &crate::session::AppSettings) -> Result<(), String> {
-        self.storage.db.set_setting("claude_cli_path", &settings.claude_cli_path)?;
-        self.storage.db.set_setting("default_shell", &settings.default_shell)?;
         self.storage
             .db
             .set_setting("terminal_font_family", &settings.terminal_font_family)?;

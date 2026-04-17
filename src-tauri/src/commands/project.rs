@@ -50,3 +50,10 @@ pub async fn pick_folder() -> Result<Option<String>, String> {
         None => Ok(None),
     }
 }
+
+#[tauri::command]
+pub async fn get_home_dir() -> Result<String, String> {
+    dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .ok_or_else(|| "Failed to get home directory".to_string())
+}

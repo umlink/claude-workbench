@@ -6,8 +6,6 @@ import {
 } from "../lib/tauri";
 
 const defaultSettings: AppSettings = {
-  claude_cli_path: "claude",
-  default_shell: "/bin/zsh",
   terminal_font_family: "JetBrains Mono, Menlo",
   terminal_font_size: 14,
   terminal_scrollback: 10000,

@@ -202,8 +202,6 @@ Tracks:
 - `isLoading: boolean` - Loading state
 
 Settings:
-- `claude_cli_path: string` - Path to Claude CLI
-- `default_shell: string` - Default shell
 - `terminal_font_family: string` - Terminal font
 - `terminal_font_size: number` - Terminal font size
 - `terminal_scrollback: number` - Scrollback lines

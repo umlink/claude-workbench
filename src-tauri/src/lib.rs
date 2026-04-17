@@ -58,6 +58,7 @@ pub fn run() {
             delete_project,
             rename_project,
             pick_folder,
+            get_home_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

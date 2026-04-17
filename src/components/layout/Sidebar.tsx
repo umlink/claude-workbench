@@ -6,9 +6,10 @@ interface SidebarProps {
   onNewSession: (projectId: string) => void;
   onNewProject: () => void;
   onSettings: () => void;
+  onGuide: () => void;
 }
 
-export function Sidebar({ onNewSession, onNewProject, onSettings }: SidebarProps) {
+export function Sidebar({ onNewSession, onNewProject, onSettings, onGuide }: SidebarProps) {
   return (
     <aside
       className="w-[280px] min-w-[280px] h-full flex flex-col bg-card border-r select-none overflow-hidden"
@@ -31,7 +32,10 @@ export function Sidebar({ onNewSession, onNewProject, onSettings }: SidebarProps
 
       {/* Claude Guide */}
       <div className="px-4 pt-3">
-        <button className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors">
+        <button
+          onClick={onGuide}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-colors"
+        >
           <BookOpen size={16} />
           <span>Claude 使用指南</span>
         </button>

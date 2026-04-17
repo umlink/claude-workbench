@@ -15,9 +15,9 @@ import {
   type TerminalExitedEvent,
 } from "../../lib/tauri";
 import { useSessionStore } from "../../state/sessionStore";
+import { useSettingsStore } from "../../state/settingsStore";
 import { TerminalSearchBar } from "./TerminalSearchBar";
-import { useTheme } from "../../providers/ThemeProvider";
-import { getTerminalTheme } from "../../lib/terminalTheme";
+import { getTerminalTheme, getTerminalBackground } from "../../lib/terminalTheme";
 
 interface TerminalViewProps {
   sessionId: string;
@@ -32,33 +32,80 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const isExitedRef = useRef(isExited);
   const hasMarkedUnavailableRef = useRef(false);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const pendingResizeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-  const { theme } = useTheme();
+  const { settings } = useSettingsStore();
 
-  // Keep ref in sync
+  // Keep refs in sync
   isExitedRef.current = isExited;
 
+  // Always use dark mode
+  const getEffectiveTheme = useCallback((): "light" | "dark" => {
+    return "dark";
+  }, []);
+
+  // 防抖的 resize 处理
+  const debouncedResize = useCallback(() => {
+    if (pendingResizeRef.current) {
+      clearTimeout(pendingResizeRef.current);
+    }
+    pendingResizeRef.current = setTimeout(() => {
+      if (fitAddonRef.current && terminalRef.current && containerRef.current) {
+        try {
+          fitAddonRef.current.fit();
+          if (!isExitedRef.current) {
+            const size: TerminalSize = {
+              rows: terminalRef.current.rows,
+              cols: terminalRef.current.cols,
+            };
+            void resizeTerminal(sessionId, size).catch(() => {});
+          }
+        } catch (e) {
+          console.warn("Resize failed:", e);
+        }
+      }
+      pendingResizeRef.current = null;
+    }, 100);
+  }, [sessionId]);
+
+  // 关键修复：切换 tab 可见时重新 fit 确保布局正确
+  useEffect(() => {
+    if (visible && fitAddonRef.current && terminalRef.current && containerRef.current) {
+      const doFit = () => {
+        try {
+          fitAddonRef.current?.fit();
+          if (!isExitedRef.current && terminalRef.current) {
+            const size: TerminalSize = {
+              rows: terminalRef.current.rows,
+              cols: terminalRef.current.cols,
+            };
+            void resizeTerminal(sessionId, size).catch(() => {});
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+      requestAnimationFrame(doFit);
+      setTimeout(doFit, 60);
+    }
+  }, [visible, sessionId]);
+
+  // Main terminal initialization
   useEffect(() => {
     if (!containerRef.current) return;
 
     hasMarkedUnavailableRef.current = false;
     let isDisposed = false;
-    const cleanupFns: Promise<() => void>[] = [];
-
-    // Get effective theme mode (resolves "system" to actual light/dark)
-    const getEffectiveTheme = (): "light" | "dark" => {
-      if (theme === "system") {
-        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      }
-      return theme;
-    };
+    const cleanupFns: (() => void)[] = [];
+    const cleanupPromises: Promise<() => void>[] = [];
 
     const terminalTheme = getTerminalTheme(getEffectiveTheme());
     const terminal = new Terminal({
-      fontFamily: "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
-      fontSize: 14,
+      fontFamily: settings.terminal_font_family || "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+      fontSize: settings.terminal_font_size || 14,
       lineHeight: 1.2,
-      scrollback: 10000,
+      scrollback: settings.terminal_scrollback || 10000,
       cursorBlink: !isExited,
       cursorStyle: "bar",
       theme: terminalTheme,
@@ -72,7 +119,6 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
     terminal.loadAddon(new WebLinksAddon());
 
     terminal.open(containerRef.current);
-    fitAddon.fit();
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -93,95 +139,91 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
       console.error(`Session ${sessionId} is no longer active:`, error);
     };
 
-    containerRef.current.addEventListener("click", () => {
-      terminal.focus();
-    });
+    const handleClick = () => terminal.focus();
+    containerRef.current.addEventListener("click", handleClick);
+    cleanupFns.push(() => containerRef.current?.removeEventListener("click", handleClick));
 
-    if (isExited) {
-      // === Exited session: replay full history in read-only mode ===
-      void replaySession(sessionId)
-        .then((chunks) => {
-          if (isDisposed) return;
-
-          if (chunks.length === 0) {
-            terminal.writeln("\x1b[33mNo session history available\x1b[0m");
-          } else {
-            for (const chunk of chunks) {
-              terminal.write(chunk);
-            }
-          }
-          terminal.write("\r\n\x1b[2m--- Session ended (read-only) ---\x1b[0m\r\n");
-        })
-        .catch((e) => {
-          if (isDisposed) return;
-          console.error("Failed to replay session:", e);
-          terminal.writeln("\x1b[33mFailed to load session history\x1b[0m");
-        });
-    } else {
-      // === Active session: replay history first, then real-time interaction ===
-
+    // === Register event listeners FIRST (before any async operations) ===
+    if (!isExited) {
       // Handle keyboard input
-      terminal.onData((data: string) => {
+      const disposableOnData = terminal.onData((data: string) => {
         if (!isExitedRef.current) {
           void writeToTerminal(sessionId, data).catch(markSessionUnavailable);
         }
       });
+      cleanupFns.push(() => disposableOnData.dispose());
 
-      // Replay past output first, then start listening for real-time events.
-      // This ensures that when a tab is re-opened for a running session,
-      // the user sees the full history instead of a blank terminal.
-      void replaySession(sessionId)
-        .then((chunks) => {
-          if (isDisposed) return;
+      // Listen for terminal output immediately
+      const outputPromise = listenToTerminalOutput((event: TerminalOutputEvent) => {
+        if (event.sessionId === sessionId && !isDisposed) {
+          terminal.write(event.chunk);
+        }
+      });
+      cleanupPromises.push(outputPromise);
 
-          // Write replayed history
+      // Listen for terminal exit immediately
+      const exitedPromise = listenToTerminalExited((event: TerminalExitedEvent) => {
+        if (event.sessionId === sessionId && !isDisposed) {
+          useSessionStore.getState().updateSessionState(sessionId, "Exited", event.exitCode);
+          terminal.options.cursorBlink = false;
+          isExitedRef.current = true;
+          terminal.write(`\r\n\x1b[2m[Process exited with code ${event.exitCode}]\x1b[0m\r\n`);
+        }
+      });
+      cleanupPromises.push(exitedPromise);
+    }
+
+    // === Resize handling ===
+    const resizeObserver = new ResizeObserver(() => {
+      debouncedResize();
+    });
+    resizeObserver.observe(containerRef.current);
+    resizeObserverRef.current = resizeObserver;
+    cleanupFns.push(() => resizeObserver.disconnect());
+
+    window.addEventListener("resize", debouncedResize);
+    cleanupFns.push(() => window.removeEventListener("resize", debouncedResize));
+
+    // === 初始化流程 ===
+    const initializeTerminal = async () => {
+      try {
+        // 先 fit 再回放
+        if (!isDisposed && visible) {
+          fitAddon.fit();
+          if (!isExitedRef.current) {
+            const size: TerminalSize = { rows: terminal.rows, cols: terminal.cols };
+            void resizeTerminal(sessionId, size).catch(markSessionUnavailable);
+          }
+        }
+
+        const chunks = await replaySession(sessionId);
+        if (isDisposed) return;
+
+        if (chunks.length === 0 && isExited) {
+          terminal.writeln("\x1b[33mNo session history available\x1b[0m");
+        } else {
           for (const chunk of chunks) {
             terminal.write(chunk);
           }
+        }
+        if (isExited) {
+          terminal.write("\r\n\x1b[2m--- Session ended (read-only) ---\x1b[0m\r\n");
+        }
 
-          // Now register real-time listeners after replay is done
-          cleanupFns.push(
-            listenToTerminalOutput((event: TerminalOutputEvent) => {
-              if (event.sessionId === sessionId) {
-                terminal.write(event.chunk);
-              }
-            }),
-          );
+        // 回放后再次 fit 确保布局正确
+        if (!isDisposed && visible) {
+          fitAddon.fit();
+        }
+      } catch (e) {
+        if (isDisposed) return;
+        console.error("Failed to initialize terminal:", e);
+        if (isExited) {
+          terminal.writeln("\x1b[33mFailed to load session history\x1b[0m");
+        }
+      }
+    };
 
-          cleanupFns.push(
-            listenToTerminalExited((event: TerminalExitedEvent) => {
-              if (event.sessionId === sessionId) {
-                useSessionStore.getState().updateSessionState(sessionId, "Exited", event.exitCode);
-                terminal.options.cursorBlink = false;
-                isExitedRef.current = true;
-                terminal.write(`\r\n\x1b[2m[Process exited with code ${event.exitCode}]\x1b[0m\r\n`);
-              }
-            }),
-          );
-        })
-        .catch(() => {
-          if (isDisposed) return;
-          // Even if replay fails, still register listeners so new output is visible
-          cleanupFns.push(
-            listenToTerminalOutput((event: TerminalOutputEvent) => {
-              if (event.sessionId === sessionId) {
-                terminal.write(event.chunk);
-              }
-            }),
-          );
-
-          cleanupFns.push(
-            listenToTerminalExited((event: TerminalExitedEvent) => {
-              if (event.sessionId === sessionId) {
-                useSessionStore.getState().updateSessionState(sessionId, "Exited", event.exitCode);
-                terminal.options.cursorBlink = false;
-                isExitedRef.current = true;
-                terminal.write(`\r\n\x1b[2m[Process exited with code ${event.exitCode}]\x1b[0m\r\n`);
-              }
-            }),
-          );
-        });
-    }
+    void initializeTerminal();
 
     // Cmd+F to open search
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
@@ -193,45 +235,46 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
       return true;
     });
 
-    // Handle resize
-    const handleResize = () => {
-      fitAddon.fit();
-      if (!isExitedRef.current) {
-        const size: TerminalSize = { rows: terminal.rows, cols: terminal.cols };
-        void resizeTerminal(sessionId, size).catch(markSessionUnavailable);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    // Initial resize
-    setTimeout(() => {
-      fitAddon.fit();
-      if (!isExitedRef.current) {
-        const size: TerminalSize = { rows: terminal.rows, cols: terminal.cols };
-        void resizeTerminal(sessionId, size).catch(markSessionUnavailable);
-      }
-    }, 100);
+    // Initial fit
+    if (visible) {
+      requestAnimationFrame(() => {
+        if (!isDisposed) {
+          fitAddon.fit();
+          if (!isExitedRef.current) {
+            const size: TerminalSize = { rows: terminal.rows, cols: terminal.cols };
+            void resizeTerminal(sessionId, size).catch(markSessionUnavailable);
+          }
+        }
+      });
+    }
 
     return () => {
       isDisposed = true;
-      window.removeEventListener("resize", handleResize);
-      for (const unlisten of cleanupFns) {
-        unlisten.then((fn) => fn());
-      }
-      terminal.dispose();
-      searchAddonRef.current = null;
-    };
-  }, [sessionId, theme, isExited]);
 
-  // Handle visibility change for fit
-  useEffect(() => {
-    if (visible && fitAddonRef.current) {
-      setTimeout(() => {
-        fitAddonRef.current?.fit();
-      }, 50);
-    }
-  }, [visible]);
+      if (pendingResizeRef.current) {
+        clearTimeout(pendingResizeRef.current);
+        pendingResizeRef.current = null;
+      }
+
+      for (const fn of cleanupFns) {
+        fn();
+      }
+
+      Promise.all(cleanupPromises)
+        .then((fns) => {
+          for (const fn of fns) {
+            fn();
+          }
+        })
+        .catch((e) => console.error("Error cleaning up event listeners:", e));
+
+      terminal.dispose();
+      terminalRef.current = null;
+      fitAddonRef.current = null;
+      searchAddonRef.current = null;
+      resizeObserverRef.current = null;
+    };
+  }, [sessionId, isExited, settings, debouncedResize, getEffectiveTheme, visible]);
 
   const handleSearch = useCallback((query: string, direction: "next" | "prev") => {
     if (!searchAddonRef.current || !query) return;
@@ -247,7 +290,7 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
       className="relative w-full h-full overflow-hidden"
       style={{
         display: visible ? "block" : "none",
-        background: "#1e1e1e",
+        background: getTerminalBackground(getEffectiveTheme()),
       }}
     >
       {isExited && (

@@ -239,6 +239,36 @@ function RenderBlock({
   }
 }
 
+// Simple syntax highlighter for JSON
+function highlightJSON(code: string): React.ReactNode {
+  const tokens = code.split(/("(?:\\.|[^"\\])*"|\s+|\{|\}|\[|\]|:|,|\d+\.?\d*|true|false|null)/g).filter(Boolean);
+
+  return tokens.map((token, index) => {
+    const trimmed = token.trim();
+    if (!trimmed) {
+      return <span key={index}>{token}</span>;
+    }
+    if (trimmed === '{' || trimmed === '}' || trimmed === '[' || trimmed === ']' || trimmed === ',' || trimmed === ':') {
+      return <span key={index} className="token punctuation">{token}</span>;
+    }
+    if (trimmed === 'true' || trimmed === 'false' || trimmed === 'null') {
+      return <span key={index} className="token keyword">{token}</span>;
+    }
+    if (/^-?\d+\.?\d*$/.test(trimmed)) {
+      return <span key={index} className="token number">{token}</span>;
+    }
+    if (token.startsWith('"')) {
+      // Check if this is a property key (followed by :)
+      const isKey = index < tokens.length - 1 && tokens.slice(index + 1).some(t => t.trim() === ':');
+      if (isKey) {
+        return <span key={index} className="token property">{token}</span>;
+      }
+      return <span key={index} className="token string">{token}</span>;
+    }
+    return <span key={index}>{token}</span>;
+  });
+}
+
 // Code Block Component
 function CodeBlock({
   content,
@@ -255,6 +285,8 @@ function CodeBlock({
   // Remove the ``` lines
   const codeLines = lines.slice(1, -1);
   const cleanCode = codeLines.join('\n');
+  const langClass = language ? getLanguageClass(language) : '';
+  const isJSON = langClass === 'json';
 
   return (
     <div className="relative group my-2">
@@ -280,11 +312,11 @@ function CodeBlock({
       </div>
       <pre
         className={cn(
-          'px-3 py-2 bg-black/30 border border-t-0 border-border rounded-b-md overflow-x-auto',
-          language ? `language-${getLanguageClass(language)}` : ''
+          'px-3 py-2 bg-muted/50 border border-t-0 border-border rounded-b-md overflow-x-auto',
+          language ? `language-${langClass}` : ''
         )}
       >
-        <code>{cleanCode}</code>
+        <code>{isJSON ? highlightJSON(cleanCode) : cleanCode}</code>
       </pre>
     </div>
   );
