@@ -16,6 +16,8 @@ import {
 } from "../../lib/tauri";
 import { useSessionStore } from "../../state/sessionStore";
 import { TerminalSearchBar } from "./TerminalSearchBar";
+import { useTheme } from "../../providers/ThemeProvider";
+import { getTerminalTheme } from "../../lib/terminalTheme";
 
 interface TerminalViewProps {
   sessionId: string;
@@ -31,6 +33,7 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
   const isExitedRef = useRef(isExited);
   const hasMarkedUnavailableRef = useRef(false);
   const [showSearch, setShowSearch] = useState(false);
+  const { theme } = useTheme();
 
   // Keep ref in sync
   isExitedRef.current = isExited;
@@ -42,21 +45,23 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
     let isDisposed = false;
     const cleanupFns: Promise<() => void>[] = [];
 
+    // Get effective theme mode (resolves "system" to actual light/dark)
+    const getEffectiveTheme = (): "light" | "dark" => {
+      if (theme === "system") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      return theme;
+    };
+
+    const terminalTheme = getTerminalTheme(getEffectiveTheme());
     const terminal = new Terminal({
       fontFamily: "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
       fontSize: 14,
       lineHeight: 1.2,
-      theme: {
-        background: "#1e1e1e",
-        foreground: "#d4d4d4",
-        cursor: "#d4d4d4",
-        cursorAccent: "#1e1e1e",
-        selectionBackground: "rgba(255, 255, 255, 0.2)",
-        selectionForeground: "#d4d4d4",
-      },
       scrollback: 10000,
       cursorBlink: !isExited,
       cursorStyle: "bar",
+      theme: terminalTheme,
     });
 
     const fitAddon = new FitAddon();
@@ -217,7 +222,7 @@ export function TerminalView({ sessionId, visible, isExited }: TerminalViewProps
       terminal.dispose();
       searchAddonRef.current = null;
     };
-  }, [sessionId]);
+  }, [sessionId, theme, isExited]);
 
   // Handle visibility change for fit
   useEffect(() => {
