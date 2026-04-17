@@ -3,6 +3,7 @@ mod events;
 mod session;
 mod storage;
 
+use commands::changes::*;
 use commands::project::*;
 use commands::session::*;
 use commands::terminal::*;
@@ -59,6 +60,10 @@ pub fn run() {
             rename_project,
             pick_folder,
             get_home_dir,
+            // Changes
+            take_start_snapshot,
+            detect_changes,
+            get_changed_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -37,6 +37,29 @@ pub struct SearchResult {
     pub rank: f64,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct FileSnapshotRecord {
+    pub id: Option<i64>,
+    pub session_id: String,
+    pub snapshot_type: String,
+    pub file_path: String,
+    pub file_hash: Option<String>,
+    pub file_size: Option<i64>,
+    pub modified_at: Option<i64>,
+    pub created_at: i64,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ChangedFileRecord {
+    pub id: Option<i64>,
+    pub session_id: String,
+    pub file_path: String,
+    pub change_type: String,
+    pub old_hash: Option<String>,
+    pub new_hash: Option<String>,
+    pub detected_at: i64,
+}
+
 macro_rules! db_err {
     ($e:expr) => {
         $e.map_err(|e| format!("{}", e))
@@ -361,6 +384,139 @@ impl Database {
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
             params![key, value],
         ))?;
+        Ok(())
+    }
+
+    // --- File Snapshots ---
+
+    pub fn insert_file_snapshot(&self, snapshot: &FileSnapshotRecord) -> Result<i64, String> {
+        let conn = self.conn.lock().unwrap();
+        db_err!(conn.execute(
+            "INSERT INTO file_snapshots (session_id, snapshot_type, file_path, file_hash, file_size, modified_at, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                snapshot.session_id,
+                snapshot.snapshot_type,
+                snapshot.file_path,
+                snapshot.file_hash,
+                snapshot.file_size,
+                snapshot.modified_at,
+                snapshot.created_at
+            ],
+        ))?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn insert_file_snapshots_batch(&self, snapshots: &[FileSnapshotRecord]) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        let tx = db_err!(conn.unchecked_transaction())?;
+        for snapshot in snapshots {
+            db_err!(tx.execute(
+                "INSERT INTO file_snapshots (session_id, snapshot_type, file_path, file_hash, file_size, modified_at, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    snapshot.session_id,
+                    snapshot.snapshot_type,
+                    snapshot.file_path,
+                    snapshot.file_hash,
+                    snapshot.file_size,
+                    snapshot.modified_at,
+                    snapshot.created_at
+                ],
+            ))?;
+        }
+        db_err!(tx.commit())?;
+        Ok(())
+    }
+
+    pub fn get_file_snapshots(&self, session_id: &str, snapshot_type: &str) -> Result<Vec<FileSnapshotRecord>, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = db_err!(conn.prepare(
+            "SELECT id, session_id, snapshot_type, file_path, file_hash, file_size, modified_at, created_at
+             FROM file_snapshots
+             WHERE session_id = ?1 AND snapshot_type = ?2
+             ORDER BY file_path ASC"
+        ))?;
+        let rows = db_err!(stmt.query_map(params![session_id, snapshot_type], |row| {
+            Ok(FileSnapshotRecord {
+                id: Some(row.get(0)?),
+                session_id: row.get(1)?,
+                snapshot_type: row.get(2)?,
+                file_path: row.get(3)?,
+                file_hash: row.get(4)?,
+                file_size: row.get(5)?,
+                modified_at: row.get(6)?,
+                created_at: row.get(7)?,
+            })
+        }))?;
+        rows.collect::<SqlResult<Vec<_>>>().map_err(|e| format!("{}", e))
+    }
+
+    // --- Changed Files ---
+
+    pub fn insert_changed_file(&self, changed_file: &ChangedFileRecord) -> Result<i64, String> {
+        let conn = self.conn.lock().unwrap();
+        db_err!(conn.execute(
+            "INSERT INTO changed_files (session_id, file_path, change_type, old_hash, new_hash, detected_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                changed_file.session_id,
+                changed_file.file_path,
+                changed_file.change_type,
+                changed_file.old_hash,
+                changed_file.new_hash,
+                changed_file.detected_at
+            ],
+        ))?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn insert_changed_files_batch(&self, changed_files: &[ChangedFileRecord]) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        let tx = db_err!(conn.unchecked_transaction())?;
+        for changed_file in changed_files {
+            db_err!(tx.execute(
+                "INSERT INTO changed_files (session_id, file_path, change_type, old_hash, new_hash, detected_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    changed_file.session_id,
+                    changed_file.file_path,
+                    changed_file.change_type,
+                    changed_file.old_hash,
+                    changed_file.new_hash,
+                    changed_file.detected_at
+                ],
+            ))?;
+        }
+        db_err!(tx.commit())?;
+        Ok(())
+    }
+
+    pub fn get_changed_files(&self, session_id: &str) -> Result<Vec<ChangedFileRecord>, String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = db_err!(conn.prepare(
+            "SELECT id, session_id, file_path, change_type, old_hash, new_hash, detected_at
+             FROM changed_files
+             WHERE session_id = ?1
+             ORDER BY file_path ASC"
+        ))?;
+        let rows = db_err!(stmt.query_map(params![session_id], |row| {
+            Ok(ChangedFileRecord {
+                id: Some(row.get(0)?),
+                session_id: row.get(1)?,
+                file_path: row.get(2)?,
+                change_type: row.get(3)?,
+                old_hash: row.get(4)?,
+                new_hash: row.get(5)?,
+                detected_at: row.get(6)?,
+            })
+        }))?;
+        rows.collect::<SqlResult<Vec<_>>>().map_err(|e| format!("{}", e))
+    }
+
+    pub fn delete_changed_files(&self, session_id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+        db_err!(conn.execute("DELETE FROM changed_files WHERE session_id = ?1", params![session_id]))?;
         Ok(())
     }
 }

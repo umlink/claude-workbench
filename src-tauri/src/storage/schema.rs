@@ -46,4 +46,30 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- File snapshots for change detection
+CREATE TABLE IF NOT EXISTS file_snapshots (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    snapshot_type TEXT NOT NULL, -- 'start' or 'end'
+    file_path   TEXT NOT NULL,
+    file_hash   TEXT, -- SHA-256 hash of file content
+    file_size   INTEGER,
+    modified_at INTEGER, -- Unix timestamp
+    created_at  INTEGER NOT NULL
+);
+
+-- Changed files detected between snapshots
+CREATE TABLE IF NOT EXISTS changed_files (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    file_path   TEXT NOT NULL,
+    change_type TEXT NOT NULL, -- 'added', 'modified', 'deleted'
+    old_hash    TEXT,
+    new_hash    TEXT,
+    detected_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_snapshots_session ON file_snapshots(session_id, snapshot_type);
+CREATE INDEX IF NOT EXISTS idx_changed_files_session ON changed_files(session_id);
 "#;

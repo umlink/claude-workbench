@@ -1,10 +1,12 @@
 import { useSessionStore } from "../../state/sessionStore";
 import { TerminalView } from "../terminal/TerminalView";
-import { Terminal, Sparkles, Zap, Code, BookOpen, Plus } from "lucide-react";
+import { FileChangesPanel } from "../changes/FileChangesPanel";
+import { Terminal, Sparkles, Zap, Code, BookOpen, Plus, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateSessionDialog } from "../session/CreateSessionDialog";
 import { useState } from "react";
 import { useProjectStore } from "../../state/projectStore";
+import { useUIStore } from "../../state/uiStore";
 
 const tips = [
   {
@@ -39,6 +41,7 @@ export function MainPanel() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const sessions = useSessionStore((s) => s.sessions);
   const { projects } = useProjectStore();
+  const { showRightPanel, toggleRightPanel } = useUIStore();
   const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
   const [preSelectedProjectId, setPreSelectedProjectId] = useState<string | undefined>();
 
@@ -113,19 +116,41 @@ export function MainPanel() {
   }
 
   return (
-    <div className="flex-1 w-full h-full overflow-hidden relative">
-      {openTabIds.map((tabId) => {
-        const session = sessions.find((s) => s.id === tabId);
-        const isExited = !session || session.state === "Exited" || session.state === "Archived";
-        return (
-          <TerminalView
-            key={tabId}
-            sessionId={tabId}
-            visible={tabId === activeSessionId}
-            isExited={isExited}
-          />
-        );
-      })}
+    <div className="flex-1 w-full h-full overflow-hidden relative flex">
+      {/* Terminal Area */}
+      <div className={`flex-1 h-full overflow-hidden relative ${showRightPanel ? "" : "w-full"}`}>
+        {openTabIds.map((tabId) => {
+          const session = sessions.find((s) => s.id === tabId);
+          const isExited = !session || session.state === "Exited" || session.state === "Archived";
+          return (
+            <TerminalView
+              key={tabId}
+              sessionId={tabId}
+              visible={tabId === activeSessionId}
+              isExited={isExited}
+            />
+          );
+        })}
+
+        {/* Toggle Right Panel Button */}
+        {activeSessionId && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleRightPanel}
+            className="absolute top-2 right-2 h-8 w-8 z-10 bg-card/50 hover:bg-card/80"
+          >
+            <PanelRight className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* File Changes Panel */}
+      {showRightPanel && activeSessionId && (
+        <div className="w-80 h-full border-l border-border flex-shrink-0">
+          <FileChangesPanel sessionId={activeSessionId} />
+        </div>
+      )}
     </div>
   );
 }

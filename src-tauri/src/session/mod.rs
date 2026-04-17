@@ -1,4 +1,5 @@
 pub mod manager;
+pub mod file_tracker;
 
 use serde::{Deserialize, Serialize};
 

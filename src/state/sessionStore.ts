@@ -5,6 +5,7 @@ import {
   renameSession as apiRenameSession,
   archiveSession as apiArchiveSession,
   destroySession as apiDestroySession,
+  takeStartSnapshot,
   type SessionInfo,
 } from "../lib/tauri";
 import { useProjectStore } from "./projectStore";
@@ -55,6 +56,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       openTabIds: [...state.openTabIds, session.id],
       activeSessionId: session.id,
     }));
+
+    // Take start snapshot in background
+    const { projects } = useProjectStore.getState();
+    const project = projects.find((p) => p.id === projectId);
+    if (project) {
+      takeStartSnapshot(session.id, project.path).catch((e) => {
+        console.error("Failed to take start snapshot:", e);
+      });
+    }
+
     return session;
   },
 

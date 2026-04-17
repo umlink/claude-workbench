@@ -61,6 +61,18 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
 }
 
+// --- File Change Types ---
+
+export interface ChangedFile {
+  id?: number;
+  session_id: string;
+  file_path: string;
+  change_type: 'added' | 'modified' | 'deleted';
+  old_hash?: string;
+  new_hash?: string;
+  detected_at: number;
+}
+
 // --- Terminal commands ---
 
 export async function createSession(
@@ -179,4 +191,18 @@ export async function listenToSessionStateChanged(callback: (event: SessionState
   return await listen<SessionStateChangedEvent>("session-state-changed", (event) => {
     callback(event.payload);
   });
+}
+
+// --- File Change commands ---
+
+export async function takeStartSnapshot(sessionId: string, projectPath: string): Promise<void> {
+  await invoke("take_start_snapshot", { session_id: sessionId, project_path: projectPath });
+}
+
+export async function detectChanges(sessionId: string, projectPath: string): Promise<ChangedFile[]> {
+  return await invoke<ChangedFile[]>("detect_changes", { session_id: sessionId, project_path: projectPath });
+}
+
+export async function getChangedFiles(sessionId: string): Promise<ChangedFile[]> {
+  return await invoke<ChangedFile[]>("get_changed_files", { session_id: sessionId });
 }

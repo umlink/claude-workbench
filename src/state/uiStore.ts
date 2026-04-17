@@ -2,13 +2,17 @@ import { create } from "zustand";
 
 interface UIStore {
   expandedProjectIds: Set<string>;
+  showRightPanel: boolean;
   toggleProjectExpanded: (projectId: string) => void;
   expandProject: (projectId: string) => void;
   setExpandedProjects: (ids: Set<string>) => void;
+  toggleRightPanel: () => void;
+  setShowRightPanel: (show: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
   expandedProjectIds: new Set(),
+  showRightPanel: true,
 
   toggleProjectExpanded: (projectId: string) => {
     set((state) => {
@@ -35,5 +39,13 @@ export const useUIStore = create<UIStore>((set) => ({
 
   setExpandedProjects: (ids: Set<string>) => {
     set({ expandedProjectIds: ids });
+  },
+
+  toggleRightPanel: () => {
+    set((state) => ({ showRightPanel: !state.showRightPanel }));
+  },
+
+  setShowRightPanel: (show: boolean) => {
+    set({ showRightPanel: show });
   },
 }));

@@ -1,5 +1,7 @@
 use crate::session::SessionState;
+use crate::session::file_tracker::FileTracker;
 use crate::session::{ProjectInfo, SessionInfo};
+use crate::storage::db::ChangedFileRecord;
 use crate::storage::log::{self, SessionLogger};
 use crate::storage::StorageManager;
 
@@ -25,13 +27,16 @@ pub struct ActiveSession {
 pub struct SessionManager {
     pty_sessions: HashMap<String, ActiveSession>,
     storage: StorageManager,
+    file_tracker: FileTracker,
 }
 
 impl SessionManager {
     pub fn new(storage: StorageManager, app_handle: AppHandle) -> Self {
+        let file_tracker = FileTracker::new(storage.db.clone());
         let mut manager = SessionManager {
             pty_sessions: HashMap::new(),
             storage,
+            file_tracker,
         };
 
         if let Err(error) = manager.reconcile_startup_state(&app_handle) {
@@ -679,5 +684,31 @@ impl SessionManager {
             .db
             .set_setting("data_retention_days", &settings.data_retention_days.to_string())?;
         Ok(())
+    }
+
+    // --- File Change Tracking ---
+
+    /// Take a start snapshot for a session
+    pub fn take_start_snapshot(
+        &self,
+        session_id: &str,
+        project_path: &str,
+    ) -> Result<(), String> {
+        let _ = self.file_tracker.take_snapshot(session_id, "start", project_path)?;
+        Ok(())
+    }
+
+    /// Detect changes for a session (takes end snapshot and compares)
+    pub fn detect_changes(
+        &self,
+        session_id: &str,
+        project_path: &str,
+    ) -> Result<Vec<ChangedFileRecord>, String> {
+        self.file_tracker.detect_changes(session_id, project_path)
+    }
+
+    /// Get changed files for a session (without re-detecting)
+    pub fn get_changed_files(&self, session_id: &str) -> Result<Vec<ChangedFileRecord>, String> {
+        self.file_tracker.get_changed_files(session_id)
     }
 }
