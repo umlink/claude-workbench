@@ -20,7 +20,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const { loadProjects, createProject } = useProjectStore();
-  const { loadSessions, updateSessionState } = useSessionStore();
+  const { loadSessions, updateSessionState, openTabIds } = useSessionStore();
   const { loadSettings } = useSettingsStore();
 
   // Initialize data on mount
@@ -92,7 +92,7 @@ function App() {
           onGuide={handleGuide}
         />
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <TabBar onNewSession={() => handleNewSession()} />
+          {openTabIds.length > 0 && <TabBar onNewSession={() => handleNewSession()} />}
           <div className="flex-1 flex overflow-hidden">
             <MainPanel />
           </div>

@@ -389,6 +389,7 @@ impl Database {
 
     // --- File Snapshots ---
 
+    #[allow(dead_code)]
     pub fn insert_file_snapshot(&self, snapshot: &FileSnapshotRecord) -> Result<i64, String> {
         let conn = self.conn.lock().unwrap();
         db_err!(conn.execute(
@@ -454,6 +455,7 @@ impl Database {
 
     // --- Changed Files ---
 
+    #[allow(dead_code)]
     pub fn insert_changed_file(&self, changed_file: &ChangedFileRecord) -> Result<i64, String> {
         let conn = self.conn.lock().unwrap();
         db_err!(conn.execute(

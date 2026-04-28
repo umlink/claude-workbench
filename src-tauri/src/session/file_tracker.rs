@@ -45,13 +45,8 @@ impl FileTracker {
         FileTracker { db }
     }
 
-    /// Take a snapshot of all files in a directory
-    pub fn take_snapshot(
-        &self,
-        session_id: &str,
-        snapshot_type: &str,
-        project_path: &str,
-    ) -> Result<Vec<FileSnapshotRecord>, String> {
+    /// Scan current file state without saving to database
+    fn scan_current_state(&self, project_path: &str) -> Result<Vec<FileSnapshotRecord>, String> {
         let now = Utc::now().timestamp_millis();
         let path = Path::new(project_path);
 
@@ -71,8 +66,8 @@ impl FileTracker {
                 let file_info = self.get_file_info(entry.path(), path)?;
                 snapshots.push(FileSnapshotRecord {
                     id: None,
-                    session_id: session_id.to_string(),
-                    snapshot_type: snapshot_type.to_string(),
+                    session_id: String::new(), // Not used for current scan
+                    snapshot_type: String::new(), // Not used for current scan
                     file_path: file_info.path,
                     file_hash: file_info.hash,
                     file_size: file_info.size,
@@ -82,7 +77,28 @@ impl FileTracker {
             }
         }
 
-        // Save to database
+        Ok(snapshots)
+    }
+
+    /// Take a snapshot of all files in a directory
+    pub fn take_snapshot(
+        &self,
+        session_id: &str,
+        snapshot_type: &str,
+        project_path: &str,
+    ) -> Result<Vec<FileSnapshotRecord>, String> {
+        let now = Utc::now().timestamp_millis();
+
+        // Scan current state
+        let mut snapshots = self.scan_current_state(project_path)?;
+
+        // Update with session info and save to database
+        for snapshot in &mut snapshots {
+            snapshot.session_id = session_id.to_string();
+            snapshot.snapshot_type = snapshot_type.to_string();
+            snapshot.created_at = now;
+        }
+
         self.db.insert_file_snapshots_batch(&snapshots)?;
 
         Ok(snapshots)
@@ -139,7 +155,7 @@ impl FileTracker {
         Ok(format!("{:x}", result))
     }
 
-    /// Detect changes between start and end snapshots
+    /// Detect changes between start snapshot and current state
     pub fn detect_changes(
         &self,
         session_id: &str,
@@ -154,9 +170,9 @@ impl FileTracker {
             .map(|s| (s.file_path.clone(), s))
             .collect();
 
-        // Take end snapshot
-        let end_snapshots = self.take_snapshot(session_id, "end", project_path)?;
-        let end_map: HashMap<_, _> = end_snapshots
+        // Scan current state (without saving to DB)
+        let current_files = self.scan_current_state(project_path)?;
+        let end_map: HashMap<_, _> = current_files
             .into_iter()
             .map(|s| (s.file_path.clone(), s))
             .collect();
